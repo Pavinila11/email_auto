@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Auto-Responder</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-image: url('pic.jpg');
+            margin: 0;
+            padding: 20px;
+        }
+
+        .email-container {
+            background: #ffffff;
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        h1 {
+            color: #202124;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .field-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #5f6368;
+        }
+
+        input[type="email"], textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #dcdcdc;
+            resize: vertical;
+            font-size: 14px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+            transition: border 0.3s;
+            box-sizing: border-box;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #4285f4;
+            outline: none;
+            box-shadow: 0 0 5px rgba(66, 133, 244, 0.5);
+        }
+
+        button {
+            background-color: #4285f4;
+            color: #ffffff;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #357ae8;
+        }
+
+        .response-container {
+            margin-top: 20px;
+            display: none;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 15px;
+        }
+
+        .auto-response {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #202124;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #f1f3f4;
+            padding: 10px;
+        }
+
+        .gmail-thread {
+            border-left: 3px solid #e0e0e0;
+            padding-left: 10px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #5f6368;
+        }
+
+        .gmail-thread p {
+            margin: 0;
+            padding: 5px 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4285f4;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <script src="https://unpkg.com/compromise"></script>
+</head>
+<body>
+    <div class="email-container">
+        <h1>Email Auto-Responder</h1>
+        <form id="emailForm">
+            <label class="field-label" for="from">From:</label>
+            <input type="email" id="from" placeholder="sender@gmail.com" required>
+
+            <label class="field-label" for="to">To:</label>
+            <input type="email" id="to" placeholder="recipient@gmail.com" required>
+
+            <label class="field-label" for="message">Message:</label>
+            <textarea id="message" rows="5" placeholder="Type your message here..." required></textarea>
+            <button type="button" onclick="processMessage()">Send</button>
+        </form>
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+        <div id="response" class="response-container">
+            <div class="auto-response">
+                <p><strong>From:</strong> <span id="reversedFrom"></span></p>
+                <p><strong>To:</strong> <span id="reversedTo"></span></p>
+                <p><strong>Auto-Response:</strong></p>
+                <div id="autoResponseText"></div>
+            </div>
+            <div class="gmail-thread">
+                <p>On <span id="originalDate"></span>, <strong><span id="originalTo"></span></strong> wrote:</p>
+                <p id="originalMessage"></p>
+            </div>
+        </div>
+    </div>
+    <script>
+        function processMessage() {
+    const from = document.getElementById("from").value;
+    const to = document.getElementById("to").value;
+    const message = document.getElementById("message").value.toLowerCase();
+    const responseElement = document.getElementById("autoResponseText");
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    const originalMessage = document.getElementById("originalMessage");
+    const originalDate = document.getElementById("originalDate");
+    const originalTo = document.getElementById("originalTo");
+    const reversedFrom = document.getElementById("reversedFrom");
+    const reversedTo = document.getElementById("reversedTo");
+    let response = "";
+
+    // Show the loading indicator
+    loadingIndicator.style.display = "block";
+
+    // Get the current date and time
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+    });
+
+    // Use Compromise for NLP tasks
+    const doc = nlp(message);
+
+    // Check for keywords in the message
+    const keywordResponse = getKeywordResponse(message);
+    if (keywordResponse) {
+        response = keywordResponse;
+    } else {
+        response = "Thank you for reaching out! Your inquiry is important to us, and we'll respond shortly.";
+    }
+
+    // Simulate a delay for loading
+    setTimeout(() => {
+        // Hide the loading indicator
+        loadingIndicator.style.display = "none";
+
+        // Populate the reversed email details
+        reversedFrom.textContent = to; // Show "To" as "From"
+        reversedTo.textContent = from; // Show "From" as "To"
+        originalTo.textContent = from; 
+        originalDate.textContent = formattedDate;
+        originalMessage.textContent = message;
+
+        // Display the auto-response
+        responseElement.innerHTML = `<p>${response}</p>`;
+        document.querySelector(".response-container").style.display = "block";
+    }, 1000); // Simulate a 1-second loading time
+}
+
+function getKeywordResponse(message) {
+    const keywords = {
+        "hi": "Hello! How can I assist you today?",
+        "thank you": "You're welcome! If you need more help, just let me know.",
+        "goodbye": "See you later! Have a wonderful day!",
+        "how is it going": "I'm doing well, thanks! How about you?",
+        "what is going on": "Not much! Just here to help you. What’s up?",
+        "long time": "It's been a while! Hope you’re doing great.",
+        "sorry": "No problem at all! We all get busy sometimes.",
+        "lets talk": "Sure! I'm here to chat. What’s on your mind?",
+        "help": "Absolutely! Tell me what you need help with.",
+        "happy": "That's great to hear! Let’s keep the positivity flowing.",
+        "excited": "Me too! Looking forward to what’s ahead.",
+        "take care": "You too! Stay safe and talk soon.",
+        "ready": "I’m ready when you are! What’s next?",
+        "great to see you": "It’s awesome to see you too! What’s new?",
+        "what do you think": "I think that sounds fantastic! Let’s dive deeper.",
+        "need help": "I'm here for you! Just let me know what you need.",
+        "updates": "I'll look into that and update you soon.",
+        "busy": "I understand! Just message me when you’re free.",
+        "reschedule": "No worries! Just tell me when works for you.",
+        // Add more keywords and responses as needed
+    };
+
+    for (const keyword in keywords) {
+        if (message.includes(keyword)) {
+            return keywords[keyword];
+        }
+    }
+    return null; // Return null if no keywords match
+}
+</script>
+</body>
+</html>
